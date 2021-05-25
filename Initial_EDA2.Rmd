@@ -1,0 +1,250 @@
+---
+title: "Group4_EDA"
+author: "Puri"
+date: "5/23/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(rworldmap)
+library(corrplot)
+library(tidyr)
+library(countrycode)
+library(PerformanceAnalytics)
+```
+
+```{r}
+# Read in dataset
+lifeExpec = read.csv("Life Expectancy Data.csv",header = TRUE)
+#lifeExpec = read.csv(file.choose())
+
+# Observe dataset in general
+dim(lifeExpec)
+str(lifeExpec)
+head(lifeExpec)
+
+# Add continent column to the dataset
+lifeExpec$continent <- countrycode(sourcevar = lifeExpec$Country,
+                                   origin = "country.name",
+                                   destination = "continent")
+
+# Edit 3 country names
+lifeExpec$CountrytoMatch <- as.character(lifeExpec$Country)
+lifeExpec$CountrytoMatch[lifeExpec$CountrytoMatch == "Côte d'Ivoire"] <- "Cote d'Ivoire"
+lifeExpec$CountrytoMatch[lifeExpec$CountrytoMatch == "Cabo Verde"] <- "Cape Verde"
+lifeExpec$CountrytoMatch[lifeExpec$CountrytoMatch == "Czechia"] <- "Czech Republic"
+
+# Create summary table
+summary(lifeExpec)
+
+```
+
+# Check and clean up data record for each country
+```{r}
+unique(lifeExpec$Country) # There are 193 countries in total
+unique(lifeExpec$Year) # 16 years of data collection from 2000 to 2015
+
+# There are 10 countries that do not have 16 years of data.  They all have only 2013 data record
+lifeExpec %>% group_by(Country) %>% 
+  filter(n() != 16)
+
+# Excluded countries with < 16 years of data collection from the dataset
+lifeExpec <- lifeExpec %>% 
+  group_by(Country) %>% 
+  filter(n() == 16)
+
+# Check if there is any country with duplicated year records
+lifeExpec %>% group_by(Country, Year) %>% 
+  filter(n() > 1) %>% 
+  summarize(n=n()) # There is none
+
+# Quick boxplot to see if any country have years of data collection differ from 2000 to 2015. --There is none.
+#lifeExpec %>% ggplot(aes(x=Country, y=Year)) + 
+#  geom_boxplot() +
+#  coord_flip()
+
+# At this point, all 193 - 10 = 183 countries have all 16 years of data record from 2000 to 2015.  Total in 2,928 (183*16) rows.
+# Create summary table
+summary(lifeExpec)
+```
+
+# Address the missing values
+```{r}
+# Check for missing value in each column
+missing.values_summary <- lifeExpec %>%
+  gather(key = "key", value = "val") %>%
+  mutate(is.missing = is.na(val)) %>%
+  group_by(key, is.missing) %>%
+  summarise(num.missing = n()) %>%
+  filter(is.missing==T) %>%
+  select(-is.missing) %>%
+  arrange(desc(num.missing))
+
+missing.values_summary
+
+# Missing values % in each column
+missing.values <- lifeExpec %>%
+  gather(key = "key", value = "val") %>%
+  mutate(isna = is.na(val)) %>%
+  group_by(key) %>%
+  mutate(total = n()) %>%
+  group_by(key, total, isna) %>%
+  summarise(num.isna = n()) %>%
+  mutate(pct = num.isna / total * 100)
+
+levels <- (missing.values %>% filter(isna == T) %>%
+             arrange(desc(pct)))$key
+
+percentage.plot <- missing.values %>%
+  ggplot() +
+  geom_bar(aes(x = reorder(key, desc(pct)),
+               y = pct, fill=isna), 
+           stat = 'identity', alpha=0.8) +
+  scale_x_discrete(limits = levels) +
+  scale_fill_manual(name = "", 
+                    values = c('steelblue', 'tomato3'), 
+                    labels = c("Present", "Missing")) +
+  coord_flip() +
+  labs(title = "Percentage of missing values", 
+       x = 'Variable', y = "% of missing values")
+
+percentage.plot
+
+# Missing value in each observation
+missing_col <- subset(lifeExpec, select = c(levels))
+vis_miss(missing_col, sort_miss=TRUE)
+
+# We will keep all data for now.  Will decide on method to treat missing data later after we figure it out about the variables that we would like to include in the model
+# In my opinion, deleting all missing value will cause too much information lost
+
+
+# Missing values by country
+lifeExpec %>% 
+  group_by(Country) %>% 
+  summarise_all(~sum(is.na(.))) %>% 
+  transmute(Country, sumNA = rowSums(.[-1]))
+
+```
+
+###### Life expectancy correlation coefficient for numerical variables
+```{r}
+# Correlation coefficient for numerical columns
+num_col <- subset(lifeExpec, select = -c(Year, Country, CountrytoMatch, Status, continent))
+
+M <- cor(num_col, use = "complete.obs")
+corrplot(M, use="complete.obs")
+
+chart.Correlation(num_col, histogram=TRUE, pch=19)
+
+num_col_highCorr <- subset(num_col, select = -c(infant.deaths, Hepatitis.B, Measles, under.five.deaths, Total.expenditure, Population, thinness..1.19.years, thinness.5.9.years))
+
+chart.Correlation(num_col_highCorr, histogram=TRUE, pch=19)
+
+pairs(num_col_highCorr)
+```
+
+```{r}
+
+# Scatter plot life expectancy vs. adult mortality color code by countrys' status.
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Schooling, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Income.composition.of.resources, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=percentage.expenditure, shape=Status, color=Status)) +
+  geom_jitter()
+
+par("mfcol"=c(3, 4))
+hist(lifeExpec$Life.expectancy, col="blue")
+hist(lifeExpec$Adult.Mortality, col="green")
+hist(lifeExpec$infant.deaths, col="red") 
+hist(lifeExpec$Alcohol, col="blue")
+hist(lifeExpec$percentage.expenditure, col="green")
+hist(lifeExpec$under.five.deaths, col="red") 
+hist(lifeExpec$Total.expenditure, col="green")
+hist(lifeExpec$GDP, col="green")
+hist(lifeExpec$Population, col="green")
+hist(lifeExpec$Income.composition.of.resources, col="green")
+hist(lifeExpec$Schooling, col="green")
+par("mfcol"=c(1, 1))
+
+par("mfcol"=c(2, 4))
+hist(lifeExpec$BMI, col="green")
+hist(lifeExpec$Hepatitis.B, col="red")
+hist(lifeExpec$Measles, col="blue")
+hist(lifeExpec$Polio, col="blue")
+hist(lifeExpec$Diphtheria, col="red") 
+hist(lifeExpec$HIV.AIDS, col="blue")
+hist(lifeExpec$thinness..1.19.years, col="red")
+hist(lifeExpec$thinness..1.19.years, col="blue")
+par("mfcol"=c(1, 1))
+```
+
+# Life expectancy trends in categorical variables
+```{r}
+# Boxplot of life expectancy vs. year shows that both mean and median of life expectancy is increasing every year since average (mean) 66.75 in 2000 to average (mean) 71.62 in 2015
+Life.expectancy_means <- aggregate(Life.expectancy ~ Year, lifeExpec, mean)
+
+lifeExpec %>% ggplot(aes(x=Year, y=Life.expectancy, group=Year)) + 
+  geom_boxplot() + 
+  stat_summary(fun=mean, colour="darkred", geom="point", 
+               shape=18, size=3, show.legend=FALSE) + 
+  geom_text(data=Life.expectancy_means, aes(label = format(round(Life.expectancy, 2), nsmall = 2), y = Life.expectancy - 2.5, col = "darkred")) +
+  theme(legend.position = "none") +
+  coord_flip()
+
+
+# Boxplot of life expectancy vs. continent also shows life expectancy increasing trend
+lifeExpec %>% ggplot(aes(x=Year, y=Life.expectancy, group=Year)) + 
+  geom_boxplot(aes(fill=continent)) +
+  facet_grid(continent ~ .)
+
+
+# Wold map displays life expectancy in general (median value from 2000 - 2015) for each country.  Africa has the lowest life expectancy, follows by Asia.
+
+medianExpec <- aggregate(lifeExpec[, 4], list(lifeExpec$CountrytoMatch), median)
+names(medianExpec)[names(medianExpec)=="Group.1"] <- "Country"
+
+countryMap <- joinCountryData2Map(lifeExpec, joinCode = "NAME", nameJoinColumn = "Country")
+
+map <- joinCountryData2Map(
+       medianExpec,
+       joinCode       = "NAME",
+       nameJoinColumn = "Country",
+       verbose = TRUE
+     )
+
+mapCountryData(map,
+               mapTitle = "Median Life Expectancy (2000 - 2015)",
+               nameColumnToPlot = "Life.expectancy",
+               catMethod = "fixedWidth"
+)
+
+# Boxplot life expectancy vs. continent also shows the same trend
+lifeExpec %>% ggplot(aes(x=continent, y=Life.expectancy)) + 
+  geom_boxplot(aes(fill=continent))
+
+# Scatter plot life expectancy vs. adult martality color code by countrys' status.
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
+  geom_jitter()
+
+```
+
+
+# Try to fit Linear Regression Model
+```{r}
+# Only consider numerical variables
+model_num <- lm(Life.expectancy ~ Adult.Mortality+Alcohol+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+GDP+Income.composition.of.resources+Schooling, data = lifeExpec)
+summary(model_num)
+
+model_num <- lm(Life.expectancy ~ Adult.Mortality+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+Income.composition.of.resources+Schooling, data = lifeExpec)
+summary(model_num)
+```
