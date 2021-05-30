@@ -4,7 +4,7 @@ author: "Puri"
 date: "5/23/2021"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -186,6 +186,61 @@ hist(lifeExpec$HIV.AIDS, col="blue")
 hist(lifeExpec$thinness..1.19.years, col="red")
 hist(lifeExpec$thinness..1.19.years, col="blue")
 par("mfcol"=c(1, 1))
+```
+
+```{r Transformation of GDP, Alcohol, BMI}
+lifeExpec %>% ggplot(aes(x=BMI, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") +geom_jitter()
+
+BMI_clean %>% ggplot(aes(x=log(BMI), y=Life.expectancy)) + geom_point() + geom_smooth(method="lm") +geom_jitter()
+
+
+summary(lifeExpec$BMI)
+#THe lowest BMI ever recorded is 7.5.  Mean BMI of 12 is the lower limit for human survival.
+lifeExpec %>% filter(BMI<12) %>% select(BMI) %>% arrange(BMI)
+BMI_clean <- lifeExpec %>% filter(BMI>=12) %>% select(Life.expectancy, BMI) %>% arrange(BMI)
+dim(BMI_clean)
+
+attach(BMI_clean)
+par(mfrow=c(1,3))
+plot(log(BMI), Life.expectancy, xlab="BMI", ylab="Life Expectancy")
+BMI.model <-lm(Life.expectancy~log(BMI))
+plot(BMI.model$fitted.values,BMI.model$residuals, xlab="Fitted Values", ylab="Residuals")
+plot(log(BMI), BMI.model$residuals, xlab="BMI", ylab="Residuals")
+
+par(mfrow=c(2,2))
+plot(BMI.model)
+
+cor(log(BMI),Life.expectancy)
+#BMI Change from .57 to .72
+
+summary(lifeExpec$Alcohol)
+#193 NAs
+Alcohol_clean <- lifeExpec %>% filter(!is.na(Alcohol)) %>% arrange(Alcohol)
+summary(Alcohol_clean$Alcohol)
+attach(Alcohol_clean)
+Alcohol.model <-lm(log(Life.expectancy)~Alcohol)
+par(mfrow=c(1,2))
+plot(Alcohol.model$fitted.values,Alcohol.model$residuals, xlab="Fitted Values", ylab="Residuals")
+plot(Alcohol, Alcohol.model$residuals, xlab="Alcohol Cons.", ylab="Residuals")
+
+# Alcohol has a nonconstant variance, when both before and after log transformed
+# Transforming life expectancy does not help the varaince either.
+# Remove Alcohol as a good candidate.
+
+summary(lifeExpec$GDP)
+# 443 NAs
+GDP_clean <- lifeExpec %>% filter(!is.na(GDP)) %>% arrange(GDP)
+summary(GDP_clean$GDP)
+
+attach(GDP_clean)
+GDP.model <- lm(Life.expectancy~log(GDP))
+par(mfrow=c(1,2))
+plot(GDP.model$fitted.values,GDP.model$residuals, xlab="Fitted Values", ylab="Residuals")
+plot(log(GDP), GDP.model$residuals, xlab="GDP.", ylab="Residuals")
+
+cor(log(GDP), Life.expectancy)
+#GDP chang from .46 to .598
+
 ```
 
 # Life expectancy trends in categorical variables
