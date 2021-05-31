@@ -191,14 +191,13 @@ par("mfcol"=c(1, 1))
 ```{r Transformation of GDP, Alcohol, BMI}
 lifeExpec %>% ggplot(aes(x=BMI, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") +geom_jitter()
 
-BMI_clean %>% ggplot(aes(x=log(BMI), y=Life.expectancy)) + geom_point() + geom_smooth(method="lm") +geom_jitter()
-
-
 summary(lifeExpec$BMI)
 #THe lowest BMI ever recorded is 7.5.  Mean BMI of 12 is the lower limit for human survival.
 lifeExpec %>% filter(BMI<12) %>% select(BMI) %>% arrange(BMI)
 BMI_clean <- lifeExpec %>% filter(BMI>=12) %>% select(Life.expectancy, BMI) %>% arrange(BMI)
 dim(BMI_clean)
+
+BMI_clean %>% ggplot(aes(x=log(BMI), y=Life.expectancy)) + geom_point() + geom_smooth(method="lm") +geom_jitter()
 
 attach(BMI_clean)
 par(mfrow=c(1,3))
@@ -243,8 +242,8 @@ cor(log(GDP), Life.expectancy)
 
 ```
 
-# Life expectancy trends in categorical variables
-```{r}
+
+```{r Life expectancy trends in categorical variables}
 # Boxplot of life expectancy vs. year shows that both mean and median of life expectancy is increasing every year since average (mean) 66.75 in 2000 to average (mean) 71.62 in 2015
 Life.expectancy_means <- aggregate(Life.expectancy ~ Year, lifeExpec, mean)
 
@@ -294,12 +293,73 @@ lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, col
 ```
 
 
-# Try to fit Linear Regression Model
-```{r}
+```{r Try to fit Linear Regression Model}
 # Only consider numerical variables
 model_num <- lm(Life.expectancy ~ Adult.Mortality+Alcohol+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+GDP+Income.composition.of.resources+Schooling, data = lifeExpec)
 summary(model_num)
 
 model_num <- lm(Life.expectancy ~ Adult.Mortality+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+Income.composition.of.resources+Schooling, data = lifeExpec)
 summary(model_num)
+```
+
+```{r Transformation Diptheria, HIV, and Polio, echo = false}
+attach(lifeExpec)
+lifeExpec %>% ggplot(aes(x=Diphtheria, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") + geom_jitter()
+oglm <- lm(Life.expectancy~Diphtheria, data = lifeExpec)
+summary(oglm)
+
+str(lifeExpec$Diphtheria)
+summary(lifeExpec$Diphtheria)
+
+# With diphtheria we are looking at vaccination rates. Anything below 25% would not be enough to impact a significant portion of the population. Thus these were removed.
+DIP_clean <- lifeExpec %>% filter(Diphtheria>=25) %>% select(Life.expectancy, Diphtheria)
+dim(DIP_clean)
+
+DIP_clean %>% ggplot(aes(x=Diphtheria, y=Life.expectancy)) + geom_point() + geom_smooth(method="lm") +geom_jitter()
+
+attach(DIP_clean)
+DIPlm <- lm(Life.expectancy~Diphtheria, data = DIP_clean)
+par(mfrow=c(2,2))
+plot(DIPlm)
+summary(DIPlm)
+
+#Tried additional transformations but none seemed to improve statistics beyond what we see in final model,
+#adj R-squared changed from .22 to .38
+
+# HIV deaths per 1000 in under 5 range starting correlation
+HIV <- lifeExpec %>% filter(!is.na(HIV.AIDS))
+summary(HIV$HIV.AIDS)
+HIV %>% ggplot(aes(x=HIV.AIDS, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+HIV %>% ggplot(aes(x=log(HIV.AIDS), y = log(Life.expectancy))) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+HIVoglm <- lm(Life.expectancy~HIV.AIDS, data = lifeExpec)
+summary(HIVoglm)
+
+attach(HIV)
+HIVlm <-lm(log(Life.expectancy)~log(HIV.AIDS))
+plot(HIVlm)
+summary(HIVlm)
+
+#transformation of both x and y variables allows residual tables to look best.
+# Adj R-squared looks much better going from .31 to .68
+
+
+#Polio
+Polio1 <- lifeExpec %>% filter(!is.na(Polio))
+summary(Polio$Polio)
+Polio1 %>% ggplot(aes(x=Polio, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+
+#similar to Diphtheria vaccination rates nothing below 25 should have a reasonable effect on total population.
+Polio_clean <- Polio1 %>% filter(Polio >= 25)
+
+Polio_clean %>% ggplot(aes(x=Polio, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+poliooglm <- lm(Life.expectancy~Polio, data = lifeExpec)
+summary(poliooglm)
+
+attach(Polio_clean)
+poliolm <-lm(Life.expectancy~Polio, data = Polio_clean)
+plot(poliolm)
+summary(poliolm)
+
+#No drastic improvements adj R-Squared went from .22 to .38
+
 ```
