@@ -1,10 +1,10 @@
 ---
 title: "Group4_EDA"
-author: "Puri"
+author: "Adeel Qureshi, Cleveland Johnson, Nathan Deinlein, and Puri Rudick"
 date: "5/23/2021"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -15,6 +15,7 @@ library(corrplot)
 library(tidyr)
 library(countrycode)
 library(PerformanceAnalytics)
+library(naniar)
 ```
 
 ```{r}
@@ -140,72 +141,36 @@ corrplot(M, use="complete.obs")
 
 chart.Correlation(num_col, histogram=TRUE, pch=19)
 
-num_col_highCorr <- subset(num_col, select = -c(infant.deaths, Hepatitis.B, Measles, under.five.deaths, Total.expenditure, Population, thinness..1.19.years, thinness.5.9.years))
+num_col_highCorr <- subset(num_col, select = -c(Alcohol, infant.deaths, Hepatitis.B, Measles, under.five.deaths, Total.expenditure, Population, thinness..1.19.years, thinness.5.9.years))
 
 chart.Correlation(num_col_highCorr, histogram=TRUE, pch=19)
 
 ```
 
-# Puri: Test on transformation of Income.composition.of.resources and Schooling
-```{r}
+# Test on transformation on high good candidate variables
+```{r Transformation of Income.composition.of.resources and Schooling}
+# Remove 'zero' from observations for both Income.composition.of.resources and Schooling
+
 income_comp <- subset(lifeExpec, select = c(Life.expectancy, Income.composition.of.resources))
 income_comp <- income_comp[income_comp$Income.composition.of.resources != 0, ]
 
 chart.Correlation(income_comp, histogram=TRUE, pch=19)
-
+# Corr. coefficient between LifeEpactancy and Income.composition.of.resources changed from 0.72 to 0.89
 
 schooling <- subset(lifeExpec, select = c(Life.expectancy, Schooling))
 schooling <- schooling[schooling$Schooling != 0, ]
 
 chart.Correlation(schooling, histogram=TRUE, pch=19)
-```
+# Corr. coefficient between LifeEpactancy and schooling changed from 0.75 to 0.78
 
-```{r}
-
-# Scatter plot life expectancy vs. adult mortality color code by countrys' status.
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
-  geom_jitter()
-
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Schooling, shape=Status, color=Status)) +
-  geom_jitter()
-
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Income.composition.of.resources, shape=Status, color=Status)) +
-  geom_jitter()
-
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=percentage.expenditure, shape=Status, color=Status)) +
-  geom_jitter()
-
-par("mfcol"=c(3, 4))
-hist(lifeExpec$Life.expectancy, col="blue")
-hist(lifeExpec$Adult.Mortality, col="green")
-hist(lifeExpec$infant.deaths, col="red") 
-hist(lifeExpec$Alcohol, col="blue")
-hist(lifeExpec$percentage.expenditure, col="green")
-hist(lifeExpec$under.five.deaths, col="red") 
-hist(lifeExpec$Total.expenditure, col="green")
-hist(lifeExpec$GDP, col="green")
-hist(lifeExpec$Population, col="green")
-hist(lifeExpec$Income.composition.of.resources, col="green")
-hist(lifeExpec$Schooling, col="green")
-par("mfcol"=c(1, 1))
-
-par("mfcol"=c(2, 4))
-hist(lifeExpec$BMI, col="green")
-hist(lifeExpec$Hepatitis.B, col="red")
-hist(lifeExpec$Measles, col="blue")
-hist(lifeExpec$Polio, col="blue")
-hist(lifeExpec$Diphtheria, col="red") 
-hist(lifeExpec$HIV.AIDS, col="blue")
-hist(lifeExpec$thinness..1.19.years, col="red")
-hist(lifeExpec$thinness..1.19.years, col="blue")
-par("mfcol"=c(1, 1))
+# Both Income.composition.of.resources and Schooling are still good candidates
 ```
 
 ```{r Transformation of GDP, Alcohol, BMI}
-lifeExpec %>% ggplot(aes(x=BMI, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") +geom_jitter()
+lifeExpec %>% ggplot(aes(x=BMI, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") + geom_jitter()
 
 summary(lifeExpec$BMI)
-#THe lowest BMI ever recorded is 7.5.  Mean BMI of 12 is the lower limit for human survival.
+# The lowest BMI ever recorded is 7.5.  Mean BMI of 12 is the lower limit for human survival.
 lifeExpec %>% filter(BMI<12) %>% select(BMI) %>% arrange(BMI)
 BMI_clean <- lifeExpec %>% filter(BMI>=12) %>% select(Life.expectancy, BMI) %>% arrange(BMI)
 dim(BMI_clean)
@@ -251,9 +216,119 @@ plot(GDP.model$fitted.values,GDP.model$residuals, xlab="Fitted Values", ylab="Re
 plot(log(GDP), GDP.model$residuals, xlab="GDP.", ylab="Residuals")
 
 cor(log(GDP), Life.expectancy)
-#GDP chang from .46 to .598
+# GDP chang from .46 to .598
 
 ```
+
+```{r Transformation Diptheria, HIV, and Polio, echo = false}
+attach(lifeExpec)
+lifeExpec %>% ggplot(aes(x=Diphtheria, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") + geom_jitter()
+oglm <- lm(Life.expectancy~Diphtheria, data = lifeExpec)
+summary(oglm)
+
+str(lifeExpec$Diphtheria)
+summary(lifeExpec$Diphtheria)
+
+# With diphtheria we are looking at vaccination rates. Anything below 25% would not be enough to impact a significant portion of the population. Thus these were removed.
+DIP_clean <- lifeExpec %>% filter(Diphtheria>=25) %>% select(Life.expectancy, Diphtheria)
+dim(DIP_clean)
+
+DIP_clean %>% ggplot(aes(x=Diphtheria, y=Life.expectancy)) + geom_point() + geom_smooth(method="lm") +geom_jitter()
+
+attach(DIP_clean)
+DIPlm <- lm(Life.expectancy~Diphtheria, data = DIP_clean)
+par(mfrow=c(2,2))
+plot(DIPlm)
+summary(DIPlm)
+
+# Tried additional transformations but none seemed to improve statistics beyond what we see in final model,
+# adj R-squared changed from .22 to .38
+
+# HIV deaths per 1000 in under 5 range starting correlation
+HIV <- lifeExpec %>% filter(!is.na(HIV.AIDS))
+summary(HIV$HIV.AIDS)
+HIV %>% ggplot(aes(x=HIV.AIDS, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+HIV %>% ggplot(aes(x=log(HIV.AIDS), y = log(Life.expectancy))) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+HIVoglm <- lm(Life.expectancy~HIV.AIDS, data = lifeExpec)
+summary(HIVoglm)
+
+attach(HIV)
+HIVlm <-lm(log(Life.expectancy)~log(HIV.AIDS))
+plot(HIVlm)
+summary(HIVlm)
+
+# transformation of both x and y variables allows residual tables to look best.
+# Adj R-squared looks much better going from .31 to .68
+
+
+# Polio
+Polio1 <- lifeExpec %>% filter(!is.na(Polio))
+summary(Polio$Polio)
+Polio1 %>% ggplot(aes(x=Polio, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+
+#similar to Diphtheria vaccination rates nothing below 25 should have a reasonable effect on total population.
+Polio_clean <- Polio1 %>% filter(Polio >= 25)
+
+Polio_clean %>% ggplot(aes(x=Polio, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
+poliooglm <- lm(Life.expectancy~Polio, data = lifeExpec)
+summary(poliooglm)
+
+attach(Polio_clean)
+poliolm <-lm(Life.expectancy~Polio, data = Polio_clean)
+plot(poliolm)
+summary(poliolm)
+
+#No drastic improvements adj R-Squared went from .22 to .38
+
+```
+
+
+
+
+
+
+```{r}
+
+# Scatter plot life expectancy vs. adult mortality color code by countrys' status.
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Schooling, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Income.composition.of.resources, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=percentage.expenditure, shape=Status, color=Status)) +
+  geom_jitter()
+
+par("mfcol"=c(3, 4))
+hist(lifeExpec$Life.expectancy, col="blue")
+hist(lifeExpec$Adult.Mortality, col="green")
+hist(lifeExpec$infant.deaths, col="red") 
+hist(lifeExpec$Alcohol, col="blue")
+hist(lifeExpec$percentage.expenditure, col="green")
+hist(lifeExpec$under.five.deaths, col="red") 
+hist(lifeExpec$Total.expenditure, col="green")
+hist(lifeExpec$GDP, col="green")
+hist(lifeExpec$Population, col="green")
+hist(lifeExpec$Income.composition.of.resources, col="green")
+hist(lifeExpec$Schooling, col="green")
+par("mfcol"=c(1, 1))
+
+par("mfcol"=c(2, 4))
+hist(lifeExpec$BMI, col="green")
+hist(lifeExpec$Hepatitis.B, col="red")
+hist(lifeExpec$Measles, col="blue")
+hist(lifeExpec$Polio, col="blue")
+hist(lifeExpec$Diphtheria, col="red") 
+hist(lifeExpec$HIV.AIDS, col="blue")
+hist(lifeExpec$thinness..1.19.years, col="red")
+hist(lifeExpec$thinness..1.19.years, col="blue")
+par("mfcol"=c(1, 1))
+```
+
+
 
 
 ```{r Life expectancy trends in categorical variables}
@@ -313,66 +388,4 @@ summary(model_num)
 
 model_num <- lm(Life.expectancy ~ Adult.Mortality+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+Income.composition.of.resources+Schooling, data = lifeExpec)
 summary(model_num)
-```
-
-```{r Transformation Diptheria, HIV, and Polio, echo = false}
-attach(lifeExpec)
-lifeExpec %>% ggplot(aes(x=Diphtheria, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") + geom_jitter()
-oglm <- lm(Life.expectancy~Diphtheria, data = lifeExpec)
-summary(oglm)
-
-str(lifeExpec$Diphtheria)
-summary(lifeExpec$Diphtheria)
-
-# With diphtheria we are looking at vaccination rates. Anything below 25% would not be enough to impact a significant portion of the population. Thus these were removed.
-DIP_clean <- lifeExpec %>% filter(Diphtheria>=25) %>% select(Life.expectancy, Diphtheria)
-dim(DIP_clean)
-
-DIP_clean %>% ggplot(aes(x=Diphtheria, y=Life.expectancy)) + geom_point() + geom_smooth(method="lm") +geom_jitter()
-
-attach(DIP_clean)
-DIPlm <- lm(Life.expectancy~Diphtheria, data = DIP_clean)
-par(mfrow=c(2,2))
-plot(DIPlm)
-summary(DIPlm)
-
-#Tried additional transformations but none seemed to improve statistics beyond what we see in final model,
-#adj R-squared changed from .22 to .38
-
-# HIV deaths per 1000 in under 5 range starting correlation
-HIV <- lifeExpec %>% filter(!is.na(HIV.AIDS))
-summary(HIV$HIV.AIDS)
-HIV %>% ggplot(aes(x=HIV.AIDS, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
-HIV %>% ggplot(aes(x=log(HIV.AIDS), y = log(Life.expectancy))) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
-HIVoglm <- lm(Life.expectancy~HIV.AIDS, data = lifeExpec)
-summary(HIVoglm)
-
-attach(HIV)
-HIVlm <-lm(log(Life.expectancy)~log(HIV.AIDS))
-plot(HIVlm)
-summary(HIVlm)
-
-#transformation of both x and y variables allows residual tables to look best.
-# Adj R-squared looks much better going from .31 to .68
-
-
-#Polio
-Polio1 <- lifeExpec %>% filter(!is.na(Polio))
-summary(Polio$Polio)
-Polio1 %>% ggplot(aes(x=Polio, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
-
-#similar to Diphtheria vaccination rates nothing below 25 should have a reasonable effect on total population.
-Polio_clean <- Polio1 %>% filter(Polio >= 25)
-
-Polio_clean %>% ggplot(aes(x=Polio, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
-poliooglm <- lm(Life.expectancy~Polio, data = lifeExpec)
-summary(poliooglm)
-
-attach(Polio_clean)
-poliolm <-lm(Life.expectancy~Polio, data = Polio_clean)
-plot(poliolm)
-summary(poliolm)
-
-#No drastic improvements adj R-Squared went from .22 to .38
-
 ```
