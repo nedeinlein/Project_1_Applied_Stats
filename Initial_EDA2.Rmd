@@ -144,7 +144,20 @@ num_col_highCorr <- subset(num_col, select = -c(infant.deaths, Hepatitis.B, Meas
 
 chart.Correlation(num_col_highCorr, histogram=TRUE, pch=19)
 
-pairs(num_col_highCorr)
+```
+
+# Puri: Test on transformation of Income.composition.of.resources and Schooling
+```{r}
+income_comp <- subset(lifeExpec, select = c(Life.expectancy, Income.composition.of.resources))
+income_comp <- income_comp[income_comp$Income.composition.of.resources != 0, ]
+
+chart.Correlation(income_comp, histogram=TRUE, pch=19)
+
+
+schooling <- subset(lifeExpec, select = c(Life.expectancy, Schooling))
+schooling <- schooling[schooling$Schooling != 0, ]
+
+chart.Correlation(schooling, histogram=TRUE, pch=19)
 ```
 
 ```{r}
