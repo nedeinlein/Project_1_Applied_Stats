@@ -389,3 +389,56 @@ summary(model_num)
 model_num <- lm(Life.expectancy ~ Adult.Mortality+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+Income.composition.of.resources+Schooling, data = lifeExpec)
 summary(model_num)
 ```
+
+```{r infant.deaths,Avg_ChildMort,Adult.Mortality echo = false}
+#EDA for the life expectancy data
+
+str(data)
+
+summary(data)
+
+head(data, 5)
+
+#check NA's
+table(is.na(data))
+rowSums(is.na(data))
+apply(is.na(data), 2, sum)
+
+#life expectancy for all the countries
+ggplot(data, aes(Life.expectancy)) + geom_histogram(bins = 10) + facet_grid(vars(continent))
+
+#life expectancy for developer vs developed
+ggplot(data, aes(Life.expectancy)) + geom_histogram(bins = 10) + facet_grid(vars(Status))
+
+#life expectancy year vs life expectancy
+ggplot(data, aes(Year, Life.expectancy, color = Status)) + geom_point(size = 4) + ggtitle(("Life Expectancy Developing Countries vs Developed Countries"))
+
+#descriptive statistics removing the nas
+data %>% drop_na(Life.expectancy) %>% group_by(Status) %>% summarize(Avg_lifexp = mean(Life.expectancy), Avg_ChildMort = mean(infant.deaths), Avg_AdultMort = mean(Adult.Mortality))
+
+#descriptive statistics by continent
+data %>% drop_na(Life.expectancy) %>% group_by(continent) %>% summarize(Avg_lifexp = mean(Life.expectancy), Avg_ChildMort = mean(infant.deaths), Avg_AdultMort = mean(Adult.Mortality))
+
+
+#life expectancy of the developed and developing countries
+data %>% drop_na(Life.expectancy) %>% group_by(Year) %>% summarize(Avg_lifexp = mean(Life.expectancy), Avg_ChildMort = mean(infant.deaths), Avg_AdultMort = mean(Adult.Mortality)) %>% ggplot() + geom_smooth(aes(Year, Avg_ChildMort), color = 'red', se = FALSE) + geom_smooth(aes(Year, Avg_AdultMort), color = 'blue', se = FALSE)
+
+clean_data <- data %>% select(-continent, -Country, -Year, -Status)
+
+head(clean_data, 5)
+
+#relationship testing for adult mortality & infant deaths
+ggplot(clean_data, aes(Adult.Mortality, infant.deaths )) + geom_point()
+
+#correlation between Adult Mortality and Life Expectancy
+clean_data %>% summarize(N = n(), cor(Adult.Mortality, as.integer(Life.expectancy), use = "pairwise.complete.obs"))
+
+clean_data %>% summarize(N = n(), cor(Adult.Mortality, infant.deaths, use = "pairwise.complete.obs"))
+
+clean_data %>% summarize(N = n(), cor(log(Adult.Mortality), log(infant.deaths), use = "pairwise.complete.obs"))
+
+#relationship testing for adult mortality & infant deaths
+ggplot(clean_data, aes(Adult.Mortality, infant.deaths)) + geom_point()
+
+ggplot(clean_data, aes(Adult.Mortality, infant.deaths)) + geom_point() + scale_x_log10() + scale_y_log10()
+```
