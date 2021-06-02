@@ -4,7 +4,7 @@ author: "Adeel Qureshi, Cleveland Johnson, Nathan Deinlein, and Puri Rudick"
 date: "5/23/2021"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -16,12 +16,12 @@ library(tidyr)
 library(countrycode)
 library(PerformanceAnalytics)
 library(naniar)
+library(car)
 ```
 
 ```{r}
 # Read in dataset
 lifeExpec = read.csv("Life Expectancy Data.csv",header = TRUE)
-#lifeExpec = read.csv(file.choose())
 
 # Observe dataset in general
 dim(lifeExpec)
@@ -141,13 +141,9 @@ corrplot(M, use="complete.obs")
 
 chart.Correlation(num_col, histogram=TRUE, pch=19)
 
-num_col_highCorr <- subset(num_col, select = -c(Alcohol, infant.deaths, Hepatitis.B, Measles, under.five.deaths, Total.expenditure, Population, thinness..1.19.years, thinness.5.9.years))
-
-chart.Correlation(num_col_highCorr, histogram=TRUE, pch=19)
-
 ```
 
-# Test on transformation on high good candidate variables
+# Test on transformation on good candidate variables
 ```{r Transformation of Income.composition.of.resources and Schooling}
 # Remove 'zero' from observations for both Income.composition.of.resources and Schooling
 
@@ -282,115 +278,7 @@ summary(poliolm)
 
 ```
 
-
-
-
-
-
-```{r}
-
-# Scatter plot life expectancy vs. adult mortality color code by countrys' status.
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
-  geom_jitter()
-
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Schooling, shape=Status, color=Status)) +
-  geom_jitter()
-
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Income.composition.of.resources, shape=Status, color=Status)) +
-  geom_jitter()
-
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=percentage.expenditure, shape=Status, color=Status)) +
-  geom_jitter()
-
-par("mfcol"=c(3, 4))
-hist(lifeExpec$Life.expectancy, col="blue")
-hist(lifeExpec$Adult.Mortality, col="green")
-hist(lifeExpec$infant.deaths, col="red") 
-hist(lifeExpec$Alcohol, col="blue")
-hist(lifeExpec$percentage.expenditure, col="green")
-hist(lifeExpec$under.five.deaths, col="red") 
-hist(lifeExpec$Total.expenditure, col="green")
-hist(lifeExpec$GDP, col="green")
-hist(lifeExpec$Population, col="green")
-hist(lifeExpec$Income.composition.of.resources, col="green")
-hist(lifeExpec$Schooling, col="green")
-par("mfcol"=c(1, 1))
-
-par("mfcol"=c(2, 4))
-hist(lifeExpec$BMI, col="green")
-hist(lifeExpec$Hepatitis.B, col="red")
-hist(lifeExpec$Measles, col="blue")
-hist(lifeExpec$Polio, col="blue")
-hist(lifeExpec$Diphtheria, col="red") 
-hist(lifeExpec$HIV.AIDS, col="blue")
-hist(lifeExpec$thinness..1.19.years, col="red")
-hist(lifeExpec$thinness..1.19.years, col="blue")
-par("mfcol"=c(1, 1))
-```
-
-
-
-
-```{r Life expectancy trends in categorical variables}
-# Boxplot of life expectancy vs. year shows that both mean and median of life expectancy is increasing every year since average (mean) 66.75 in 2000 to average (mean) 71.62 in 2015
-Life.expectancy_means <- aggregate(Life.expectancy ~ Year, lifeExpec, mean)
-
-lifeExpec %>% ggplot(aes(x=Year, y=Life.expectancy, group=Year)) + 
-  geom_boxplot() + 
-  stat_summary(fun=mean, colour="darkred", geom="point", 
-               shape=18, size=3, show.legend=FALSE) + 
-  geom_text(data=Life.expectancy_means, aes(label = format(round(Life.expectancy, 2), nsmall = 2), y = Life.expectancy - 2.5, col = "darkred")) +
-  theme(legend.position = "none") +
-  coord_flip()
-
-
-# Boxplot of life expectancy vs. continent also shows life expectancy increasing trend
-lifeExpec %>% ggplot(aes(x=Year, y=Life.expectancy, group=Year)) + 
-  geom_boxplot(aes(fill=continent)) +
-  facet_grid(continent ~ .)
-
-
-# Wold map displays life expectancy in general (median value from 2000 - 2015) for each country.  Africa has the lowest life expectancy, follows by Asia.
-
-medianExpec <- aggregate(lifeExpec[, 4], list(lifeExpec$CountrytoMatch), median)
-names(medianExpec)[names(medianExpec)=="Group.1"] <- "Country"
-
-countryMap <- joinCountryData2Map(lifeExpec, joinCode = "NAME", nameJoinColumn = "Country")
-
-map <- joinCountryData2Map(
-       medianExpec,
-       joinCode       = "NAME",
-       nameJoinColumn = "Country",
-       verbose = TRUE
-     )
-
-mapCountryData(map,
-               mapTitle = "Median Life Expectancy (2000 - 2015)",
-               nameColumnToPlot = "Life.expectancy",
-               catMethod = "fixedWidth"
-)
-
-# Boxplot life expectancy vs. continent also shows the same trend
-lifeExpec %>% ggplot(aes(x=continent, y=Life.expectancy)) + 
-  geom_boxplot(aes(fill=continent))
-
-# Scatter plot life expectancy vs. adult martality color code by countrys' status.
-lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
-  geom_jitter()
-
-```
-
-
-```{r Try to fit Linear Regression Model}
-# Only consider numerical variables
-model_num <- lm(Life.expectancy ~ Adult.Mortality+Alcohol+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+GDP+Income.composition.of.resources+Schooling, data = lifeExpec)
-summary(model_num)
-
-model_num <- lm(Life.expectancy ~ Adult.Mortality+percentage.expenditure+BMI+Polio+Diphtheria+HIV.AIDS+Income.composition.of.resources+Schooling, data = lifeExpec)
-summary(model_num)
-```
-
-```{r infant.deaths,Avg_ChildMort,Adult.Mortality echo = false}
+```{r infant.deaths, Avg_ChildMort, Adult.Mortality echo = false}
 #EDA for the life expectancy data
 
 str(data)
@@ -441,4 +329,193 @@ clean_data %>% summarize(N = n(), cor(log(Adult.Mortality), log(infant.deaths), 
 ggplot(clean_data, aes(Adult.Mortality, infant.deaths)) + geom_point()
 
 ggplot(clean_data, aes(Adult.Mortality, infant.deaths)) + geom_point() + scale_x_log10() + scale_y_log10()
+```
+
+```{r Life expectancy trends in categorical variables}
+# Boxplot of life expectancy vs. year shows that both mean and median of life expectancy is increasing every year since average (mean) 66.75 in 2000 to average (mean) 71.62 in 2015
+Life.expectancy_means <- aggregate(Life.expectancy ~ Year, lifeExpec, mean)
+
+lifeExpec %>% ggplot(aes(x=Year, y=Life.expectancy, group=Year)) + 
+  geom_boxplot() + 
+  stat_summary(fun=mean, colour="darkred", geom="point", 
+               shape=18, size=3, show.legend=FALSE) + 
+  geom_text(data=Life.expectancy_means, aes(label = format(round(Life.expectancy, 2), nsmall = 2), y = Life.expectancy - 2.5, col = "darkred")) +
+  theme(legend.position = "none") +
+  coord_flip()
+
+
+# Boxplot of life expectancy vs. continent also shows life expectancy increasing trend
+lifeExpec %>% ggplot(aes(x=Year, y=Life.expectancy, group=Year)) + 
+  geom_boxplot(aes(fill=continent)) +
+  facet_grid(continent ~ .)
+
+
+# Wold map displays life expectancy in general (median value from 2000 - 2015) for each country.  Africa has the lowest life expectancy, follows by Asia.
+
+medianExpec <- aggregate(lifeExpec[, 4], list(lifeExpec$CountrytoMatch), median)
+names(medianExpec)[names(medianExpec)=="Group.1"] <- "Country"
+
+countryMap <- joinCountryData2Map(lifeExpec, joinCode = "NAME", nameJoinColumn = "Country")
+
+map <- joinCountryData2Map(
+       medianExpec,
+       joinCode       = "NAME",
+       nameJoinColumn = "Country",
+       verbose = TRUE
+     )
+
+mapCountryData(map,
+               mapTitle = "Median Life Expectancy (2000 - 2015)",
+               nameColumnToPlot = "Life.expectancy",
+               catMethod = "fixedWidth"
+)
+
+# Boxplot life expectancy vs. continent also shows the same trend
+lifeExpec %>% ggplot(aes(x=continent, y=Life.expectancy)) + 
+  geom_boxplot(aes(fill=continent))
+
+# Scatter plot life expectancy vs. adult martality color code by countrys' status.
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
+  geom_jitter()
+
+```
+
+```{r EDA Misc.}
+
+# Scatter plot life expectancy vs. adult mortality color code by countrys' status.
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Adult.Mortality, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Schooling, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=Income.composition.of.resources, shape=Status, color=Status)) +
+  geom_jitter()
+
+lifeExpec %>% ggplot(aes(x=Life.expectancy, y=percentage.expenditure, shape=Status, color=Status)) +
+  geom_jitter()
+
+par("mfcol"=c(3, 4))
+hist(lifeExpec$Life.expectancy, col="blue")
+hist(lifeExpec$Adult.Mortality, col="green")
+hist(lifeExpec$infant.deaths, col="red") 
+hist(lifeExpec$Alcohol, col="blue")
+hist(lifeExpec$percentage.expenditure, col="green")
+hist(lifeExpec$under.five.deaths, col="red") 
+hist(lifeExpec$Total.expenditure, col="green")
+hist(lifeExpec$GDP, col="green")
+hist(lifeExpec$Population, col="green")
+hist(lifeExpec$Income.composition.of.resources, col="green")
+hist(lifeExpec$Schooling, col="green")
+par("mfcol"=c(1, 1))
+
+par("mfcol"=c(2, 4))
+hist(lifeExpec$BMI, col="green")
+hist(lifeExpec$Hepatitis.B, col="red")
+hist(lifeExpec$Measles, col="blue")
+hist(lifeExpec$Polio, col="blue")
+hist(lifeExpec$Diphtheria, col="red") 
+hist(lifeExpec$HIV.AIDS, col="blue")
+hist(lifeExpec$thinness..1.19.years, col="red")
+hist(lifeExpec$thinness..1.19.years, col="blue")
+par("mfcol"=c(1, 1))
+```
+
+
+# Final Dataset
+```{r}
+# Final dataset, lifeExpec_final, only includes Life.expectancy, Status, continent, BMI, HIV.AIDS, GDP, Income.composition.of.resources, and Schooling
+lifeExpec_final <- subset(lifeExpec, select = -c(Country, CountrytoMatch, Year, Adult.Mortality, Alcohol, percentage.expenditure, infant.deaths, Hepatitis.B, Measles, under.five.deaths, Total.expenditure, Population, thinness..1.19.years, thinness.5.9.years, Polio, Diphtheria))
+
+summary(lifeExpec_final)
+
+
+# Lowest BMI to survive is 12 so we replace everything <12 and NA with overall mean BMI then log transform
+lifeExpec_final$BMI <- replace(lifeExpec_final$BMI, lifeExpec_final$BMI < 12, NA)
+
+lifeExpec_final$BMI[is.na(lifeExpec_final$BMI)]<-mean(lifeExpec_final$BMI,na.rm=TRUE)
+lifeExpec_final$BMI
+
+lifeExpec_final$BMI_log <- log(lifeExpec_final$BMI)
+
+
+# Replace zero for Income.composition.of.resources with its mean
+lifeExpec_final$Income.composition.of.resources <- replace(lifeExpec_final$Income.composition.of.resources,
+                                                           lifeExpec_final$Income.composition.of.resources == 0, NA)
+summary(lifeExpec_final$Income.composition.of.resources)
+
+lifeExpec_final$Income.composition.of.resources[is.na(lifeExpec_final$Income.composition.of.resources)] <-
+  mean(lifeExpec_final$Income.composition.of.resources,na.rm=TRUE)
+lifeExpec_final$Income.composition.of.resources
+
+
+# Replace zero for Schooling with its mean
+lifeExpec_final$Schooling <- replace(lifeExpec_final$Schooling,
+                                     lifeExpec_final$Schooling == 0, NA)
+summary(lifeExpec_final$Schooling)
+
+lifeExpec_final$Schooling[is.na(lifeExpec_final$Schooling)] <-
+  mean(lifeExpec_final$Schooling,na.rm=TRUE)
+lifeExpec_final$Schooling
+
+
+# Replace GDP's NA with its mean then log transform
+summary(lifeExpec_final$GDP)
+lifeExpec_final$GDP[is.na(lifeExpec_final$GDP)]<-mean(lifeExpec_final$GDP,na.rm=TRUE)
+lifeExpec_final$GDP
+
+lifeExpec_final$GDP_log <- log(lifeExpec_final$GDP)
+
+
+# Replace HIV.AIDS's NA with its mean then log transform
+summary(lifeExpec_final$HIV.AIDS)
+lifeExpec_final$HIV.AIDS[is.na(lifeExpec_final$HIV.AIDS)]<-mean(lifeExpec_final$HIV.AIDS,na.rm=TRUE)
+lifeExpec_final$HIV.AIDS
+
+lifeExpec_final$HIV.AIDS_log <- log(lifeExpec_final$HIV.AIDS)
+```
+
+# Correlation plot for final dataset and VIF value
+```{r}
+# Plot correlation chart for final dataset numerical variables
+
+## Original variables before transformation included
+lifeExpec_final_numCol_Orig <- subset(lifeExpec_final, select = -c(Status, continent))
+chart.Correlation(lifeExpec_final_numCol_Orig, histogram=TRUE, pch=19)
+
+## Remove unlog BMI, GDP, and HIV.AIDS 
+lifeExpec_final_numCol <- subset(lifeExpec_final, select = -c(Status, continent, BMI, GDP, HIV.AIDS))
+chart.Correlation(lifeExpec_final_numCol, histogram=TRUE, pch=19)
+
+
+lifeExpec_final <- subset(lifeExpec_final, select = -c(BMI, GDP, HIV.AIDS))
+summary(lifeExpec_final)
+
+
+# VIF for selected variables
+## Refer to GVIF^(1/(2*Df)), Income_comp shows the highest VIF = 2.77, follows by Schooling at 2.33.
+## Other variables shows VIF between 1.26 - 1.69
+full.model <- lm(Life.expectancy~., data = lifeExpec_final)
+vif(full.model)
+```
+
+
+# Build Simple Multiple Linear Regression Models
+```{r}
+model1 <- lm(Life.expectancy ~ Status + continent + Income.composition.of.resources + Schooling + BMI_log + GDP_log + HIV.AIDS_log, 
+             data = lifeExpec_final)
+
+par(mfrow=c(2,2))
+plot(model1)
+
+summary(model1)
+
+
+model2 <- lm(Life.expectancy ~ Status + Income.composition.of.resources + Schooling + BMI_log + GDP_log + HIV.AIDS_log, 
+             data = lifeExpec_final)
+
+par(mfrow=c(2,2))
+plot(model2)
+
+summary(model2)
 ```
