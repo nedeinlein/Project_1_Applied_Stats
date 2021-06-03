@@ -521,6 +521,7 @@ summary(model2)
 ```
 
 ```{r Test and train sets}
+set.seed(7)
 splitPerc = .85
 trainIndices = sample(1:dim(lifeExpec_final)[1],round(splitPerc * dim(lifeExpec_final)[1]))
 train = lifeExpec_final[trainIndices,]
