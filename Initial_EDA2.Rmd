@@ -519,3 +519,10 @@ plot(model2)
 
 summary(model2)
 ```
+
+```{r Test and train sets}
+splitPerc = .85
+trainIndices = sample(1:dim(lifeExpec_final)[1],round(splitPerc * dim(lifeExpec_final)[1]))
+train = lifeExpec_final[trainIndices,]
+test = lifeExpec_final[-trainIndices,]
+```
