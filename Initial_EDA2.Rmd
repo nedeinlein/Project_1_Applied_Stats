@@ -19,6 +19,9 @@ library(naniar)
 library(car)
 library(leaps)
 library(glmnet)
+library(caret)
+library(broom)
+
 ```
 
 ```{r}
@@ -671,5 +674,145 @@ summary(finalcpmodelb)
 plot(finalcpmodelb)
 ```
 
+```{r KNN regression Model}
+
+head(lifeExpec_final)
+
+lifeExpec_final$Life.expectancy <- as.numeric(lifeExpec_final$Life.expectancy)
+lifeExpec_final$Income.composition.of.resources <- as.numeric(lifeExpec_final_numCol$Income.composition.of.resources)
+lifeExpec_final$Schooling <- as.numeric(lifeExpec_final$Schooling)
+lifeExpec_final$BMI_log <- as.numeric(lifeExpec_final$BMI_log)
+lifeExpec_final$GDP_log <- as.numeric(lifeExpec_final$GDP_log)
+lifeExpec_final$HIV.AIDS_log <- as.numeric(lifeExpec_final$HIV.AIDS_log)
+lifeExpec_final$Status <- as.numeric(as.factor(lifeExpec_final$Status))
+lifeExpec_final$continent <- as.numeric(as.factor(lifeExpec_final$continent))
+
+head(lifeExpec_final, 5)
+
+#estimation-validation split
+lifeEst_trn_idx  <- sample(nrow(train), size = 0.8 * nrow(train))
+lifeEst_est <- train[lifeEst_trn_idx,]
+lifeEst_val <- train[-lifeEst_trn_idx,]
+
+#verify data
+head(train, 10)
+
+#building KNN reg model
+lifeEst_knn_01 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 1)
+lifeEst_knn_05 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 5)
+lifeEst_knn_10 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 10)
+lifeEst_knn_25 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 25)
+
+head(lifeEst_knn_10$learn$X)
+
+dist(head(lifeEst_knn_10$learn$X))
+
+#calculating the distance between the 3rd observation and 4th observation
+sqrt(sum((lifeEst_knn_10$learn$X[3,] - lifeEst_knn_10$learn$X[4,])^4))
+
+#test the predict function
+predict(lifeEst_knn_10, lifeEst_val[1:50,])
+
+#calculating the RMSE for the models
+knn_mod_list = list(
+lifeEst_knn_01 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 1),
+lifeEst_knn_05 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 5),
+lifeEst_knn_10 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 10),
+lifeEst_knn_25 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 25)
+)
+
+train_knn(neighbors = 5)
+
+knn_list <- lapply(1:50, train_knn)
+
+knn_val_pred <- lapply(knn_list, predict, lifeEst_val)
+knn_trn_pred <- lapply(knn_list, predict, lifeEst_est)
+
+calc_rmse <- function(actual, predicted) (
+  sqrt(mean((actual - predicted)^ 2))
+)
+
+sapply(knn_val_pred, calc_rmse, lifeEst_val$Life.expectancy)
+
+#creating function for multiple k values
+train_knn <- function(neighbors) {
+  knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = neighbors)
+}
+
+#create vectors for RMSE val and pred
+knn_rmse_val <- sapply(knn_val_pred, calc_rmse, lifeEst_val$Life.expectancy)
+knn_rmse_trn <- sapply(knn_trn_pred, calc_rmse, lifeEst_est$Life.expectancy)
+
+#plot rmse 
+plot(1:50, knn_rmse_val, type = "b", col = "dodgerblue", pch = 20, ylim = range(c(knn_rmse_val,knn_rmse_trn)), xlab = "k (number of neighbors", ylab = "RMSE", main = "Validation and Training RMSE vs k")
+lines(1:50, knn_rmse_trn, col = "darkorange")
+grid()
+legend('bottomright', 
+       c("Train RMSE","Validation RMSE"),
+       col = c(2,1),
+       lty = 1,
+       pch = 20)
+
+
+#plot the predict function KNN K=1
+pred01 <- predict(lifeEst_knn_01, lifeEst_val[1:50,])
+actual <- lifeExpec_final[1:50,]
+
+
+plot(actual$Life.expectancy, col = "black", ylab = "Actual vs Predicted Life Exp", main = "KNN K=1 Actual vs Predicted Life Expectancy")
+points(1:50,pred01, col = "red")
+grid()
+legend('bottomright', 
+       c("Prediction","Actual"),
+       col = c(2,1),
+       lty = 1,
+       pch = 20)
+
+
+
+#plot the predict function KNN K=5
+pred05 <- predict(lifeEst_knn_05, lifeEst_val[1:50,])
+actual <- lifeExpec_final[1:50,]
+
+
+plot(actual$Life.expectancy, col = "black", ylab = "Actual vs Predicted Life Exp", main = "KNN K=5 Actual vs Predicted Life Expectancy")
+points(1:50,pred05, col = "red")
+grid()
+legend('bottomright', 
+       c("Prediction","Actual"),
+       col = c(2,1),
+       lty = 1,
+       pch = 20)
+
+
+#plot the predict function KNN K=10
+pred10 <- predict(lifeEst_knn_10, lifeEst_val[1:50,])
+actual <- lifeExpec_final[1:50,]
+
+
+plot(actual$Life.expectancy, col = "black", ylab = "Actual vs Predicted Life Exp", main = "KNN K=10 Actual vs Predicted Life Expectancy")
+points(1:50,pred10, col = "red")
+grid()
+legend('bottomright', 
+       c("Prediction","Actual"),
+       col = c(2,1),
+       lty = 1,
+       pch = 20)
+
+
+#plot the predict function KNN K=25
+pred25 <- predict(lifeEst_knn_25, lifeEst_val[1:50,])
+actual <- lifeExpec_final[1:50,]
+
+
+plot(actual$Life.expectancy, col = "black", ylab = "Actual vs Predicted Life Exp", main = "KNN K=25 Actual vs Predicted Life Expectancy")
+points(1:50,pred25, col = "red")
+grid()
+legend('bottomright', 
+       c("Prediction","Actual"),
+       col = c(2,1),
+       lty = 1,
+       pch = 20)
+```
 
 
