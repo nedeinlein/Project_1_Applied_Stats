@@ -669,27 +669,7 @@ finalcpmodelb <- lm(Life.expectancy ~ Status + continent +  Income.composition.o
 par(mfrow=c(2,2))
 summary(finalcpmodelb)
 plot(finalcpmodelb)
+```
 
-
-x=model.matrix(Life.expectancy~.,train)[,-1]
-y=train$Life.expectancy
-
-xtest<-model.matrix(Life.expectancy~.,test)[,-1]
-ytest<-test$Life.expectancy
-
-
-grid=10^seq(10,-2, length =100)
-lasso.mod=glmnet(x,y,alpha=1, lambda =grid)
-
-cv.out=cv.glmnet(x,y,alpha=1) #alpha=1 performs LASSO
-plot(cv.out)
-
-bestlambda<-cv.out$lambda.min  #Optimal penalty parameter.  You can make this call visually.
-lasso.pred=predict (lasso.mod ,s=bestlambda ,newx=xtest)
-
-testMSE_LASSO<-mean((ytest-lasso.pred)^2)
-testMSE_LASSO
-
-coef(lasso.mod,s=bestlambda)
 
 
