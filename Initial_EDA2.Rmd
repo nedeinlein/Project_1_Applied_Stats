@@ -589,3 +589,107 @@ coef(lasso.mod,s=bestlambda)
 
 
 ```
+
+```{r Complex MLR}
+
+#complex model with interaction terms
+fwdcpmodel1 <- regsubsets(Life.expectancy ~ Status + continent + Income.composition.of.resources + Schooling + BMI_log + GDP_log + HIV.AIDS_log + Income.composition.of.resources*Schooling + Income.composition.of.resources*BMI_log + Income.composition.of.resources*GDP_log + Schooling*BMI_log+Schooling*GDP_log + BMI_log*GDP_log, data = train, method = 'backward', nvmax=16)
+
+#base check of model summary with VIF
+par(mfrow=c(2,2))
+plot(fwdcpmodel1)
+summary(fwdcpmodel1)
+
+
+#plot of BIC, ADJR^2, and RSS
+bicsb <- summary(fwdcpmodel1)$bic
+adjr2b <- summary(fwdcpmodel1)$adjr2
+rssb <- summary(fwdcpmodel1)$rss
+
+par(mfrow=c(1,3))
+plot(1:13,bicsb,type="l",ylab="BIC",xlab="# of predictors")
+index<-which(bicsb==min(bicsb))
+points(index,bicsb[index],col="red",pch=13)
+
+plot(1:13,adjr2b,type="l",ylab="Adjusted R-squared",xlab="# of predictors")
+index<-which(adjr2b==max(adjr2b))
+points(index,adjr2b[index],col="red",pch=13)
+
+plot(1:13,rssb,type="l",ylab="train RSS",xlab="# of predictors")
+index<-which(rssb==min(rssb))
+points(index,rssb[index],col="red",pch=13)
+
+#Cross validation function
+predict.regsubsets =function (object , newdata ,id ,...){
+  form=as.formula (object$call [[2]])
+  mat=model.matrix(form ,newdata)
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+#test versus train 
+testASEb<-c()
+for (i in 1:13){
+  predictions <-predict.regsubsets(object=fwdcpmodel1,newdata=test,id=i)
+  testASEb[i]<-mean((test$Life.expectancy-predictions)^2)
+}
+
+#test versus train graph
+par(mfrow=c(1,1))
+plot(1:13,testASEb,type="l",xlab="# of predictors",ylab="test vs train ASE")
+index<-which(testASEb==min(testASEb))
+points(index,testASEb[index],col="red",pch=13)
+lines(1:13,rssb/2489,lty=3,col="blue")
+
+#8 seems to be optimum number of variables
+coef(fwdcpmodel1,8)
+
+#vif check before final model
+vifcheckmodel <- lm(Life.expectancy ~ Status + continent +  Income.composition.of.resources + Schooling + HIV.AIDS_log + Income.composition.of.resources*Schooling + Income.composition.of.resources*BMI_log + Schooling*BMI_log, data = train)
+
+#base check of model summary with VIF
+par(mfrow=c(2,2))
+plot(vifcheckmodel)
+summary(vifcheckmodel)
+vif(vifcheckmodel)
+
+vifcheckmodelb <- lm(Life.expectancy ~ Status + continent +  Income.composition.of.resources + HIV.AIDS_log + Schooling*BMI_log, data = train)
+
+#base check of model summary with VIF
+par(mfrow=c(2,2))
+plot(vifcheckmodelb)
+summary(vifcheckmodelb)
+vif(vifcheckmodelb)
+
+#Final model with VIF handled.
+finalcpmodelb <- lm(Life.expectancy ~ Status + continent +  Income.composition.of.resources*HIV.AIDS_log + Schooling*BMI_log, data = train)
+
+#checkign final residual plots.
+par(mfrow=c(2,2))
+summary(finalcpmodelb)
+plot(finalcpmodelb)
+
+
+x=model.matrix(Life.expectancy~.,train)[,-1]
+y=train$Life.expectancy
+
+xtest<-model.matrix(Life.expectancy~.,test)[,-1]
+ytest<-test$Life.expectancy
+
+
+grid=10^seq(10,-2, length =100)
+lasso.mod=glmnet(x,y,alpha=1, lambda =grid)
+
+cv.out=cv.glmnet(x,y,alpha=1) #alpha=1 performs LASSO
+plot(cv.out)
+
+bestlambda<-cv.out$lambda.min  #Optimal penalty parameter.  You can make this call visually.
+lasso.pred=predict (lasso.mod ,s=bestlambda ,newx=xtest)
+
+testMSE_LASSO<-mean((ytest-lasso.pred)^2)
+testMSE_LASSO
+
+coef(lasso.mod,s=bestlambda)
+
+
