@@ -590,7 +590,19 @@ testMSE_LASSO
 
 coef(lasso.mod,s=bestlambda)
 
+lasso.final <- lm(Life.expectancy~Status+Income.composition.of.resources+Schooling+continent+BMI_log+HIV.AIDS_log, data= lifeExpec_final)
 
+summary(lasso.final)
+
+par(mfrow=c(2,2))
+plot(lasso.final)
+
+lifeExpec_final[1126,]
+lifeExpec_final[544,]
+lifeExpec_final[864,]
+lifeExpec[1126,]
+lifeExpec[544,]
+lifeExpec[864,]
 ```
 
 ```{r Complex MLR}
