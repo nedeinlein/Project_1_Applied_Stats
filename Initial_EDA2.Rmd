@@ -21,7 +21,6 @@ library(leaps)
 library(glmnet)
 library(caret)
 library(broom)
-
 ```
 
 ```{r}
@@ -44,7 +43,7 @@ lifeExpec$CountrytoMatch[lifeExpec$CountrytoMatch == "Côte d'Ivoire"] <- "Cote 
 lifeExpec$CountrytoMatch[lifeExpec$CountrytoMatch == "Cabo Verde"] <- "Cape Verde"
 lifeExpec$CountrytoMatch[lifeExpec$CountrytoMatch == "Czechia"] <- "Czech Republic"
 
-# Create summary table
+# Statistics summary table for all variables
 summary(lifeExpec)
 
 ```
@@ -102,23 +101,17 @@ missing.values <- lifeExpec %>%
   summarise(num.isna = n()) %>%
   mutate(pct = num.isna / total * 100)
 
-levels <- (missing.values %>% filter(isna == T) %>%
-             arrange(desc(pct)))$key
+mm <- missing.values %>% filter(pct != 100)
+mm <- mm %>% group_by(key) %>% mutate(max.per.group = max(as.numeric(pct)))
 
-percentage.plot <- missing.values %>%
-  ggplot() +
-  geom_bar(aes(x = reorder(key, desc(pct)),
-               y = pct, fill=isna), 
-           stat = 'identity', alpha=0.8) +
-  scale_x_discrete(limits = levels) +
-  scale_fill_manual(name = "", 
-                    values = c('steelblue', 'tomato3'), 
-                    labels = c("Present", "Missing")) +
-  coord_flip() +
-  labs(title = "Percentage of missing values", 
-       x = 'Variable', y = "% of missing values")
+mm %>% ggplot(aes(x= reorder(key, desc(max.per.group)), y=pct, fill=isna)) + geom_bar(stat="identity") + 
+  geom_text(aes(label=paste0(round(pct,1),"%")), 
+            position = position_stack(vjust = .5), size = 3.5) + 
+  labs(title = 'Percentage of missing values', x = 'Variable', y = '% of Missing Values') +
+  theme_classic() + scale_fill_manual(name = "", 
+                    values = c('lightblue2', 'lightsalmon2'), 
+                    labels = c("Present", "Missing")) + coord_flip()
 
-percentage.plot
 
 # Missing value in each observation
 missing_col <- subset(lifeExpec, select = c(levels))
