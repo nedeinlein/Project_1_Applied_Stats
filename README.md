@@ -1,6 +1,7 @@
 # Project_1_Applied_Stats
 Group Repository for Applied Statistics
-Authors: Adeel Qureshi
+Authors:
+Adeel Qureshi
 Cleveland Johnson
 Nathan Deinlein
 Puri Rudick

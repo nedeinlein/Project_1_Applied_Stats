@@ -591,10 +591,16 @@ lifeExpec[864,]
 #complex model with interaction terms
 fwdcpmodel1 <- regsubsets(Life.expectancy ~ Status + continent + Income.composition.of.resources + Schooling + BMI_log + GDP_log + HIV.AIDS_log + Income.composition.of.resources*Schooling + Income.composition.of.resources*BMI_log + Income.composition.of.resources*GDP_log + Schooling*BMI_log+Schooling*GDP_log + BMI_log*GDP_log, data = train, method = 'backward', nvmax=13)
 
+<<<<<<< HEAD
 #base check of model summary with VIF
 #par(mfrow=c(2,2))
 #plot(fwdcpmodel1)
 #summary(fwdcpmodel1)
+=======
+#base check of model
+summary(fwdcpmodel1)
+
+>>>>>>> 2eb1fe67a9f5ec2856949af13b8660f94e6bc44f
 
 #plot of BIC, ADJR^2, and RSS
 bicsb <- summary(fwdcpmodel1)$bic
@@ -602,17 +608,19 @@ adjr2b <- summary(fwdcpmodel1)$adjr2
 rssb <- summary(fwdcpmodel1)$rss
 
 par(mfrow=c(1,3))
-plot(1:13,bicsb,type="l",ylab="BIC",xlab="# of predictors")
+plot(1:16,bicsb,type="l",ylab="BIC",xlab="# of predictors",main= "Complex MLR BIC")
 index<-which(bicsb==min(bicsb))
-points(index,bicsb[index],col="red",pch=13)
+points(index,bicsb[index],col="red",pch=16)
 
-plot(1:13,adjr2b,type="l",ylab="Adjusted R-squared",xlab="# of predictors")
+plot(1:16,adjr2b,type="l",ylab="Adjusted R-squared",xlab="# of predictors",main= "Complex MLR ADJR2")
 index<-which(adjr2b==max(adjr2b))
-points(index,adjr2b[index],col="red",pch=13)
+points(index,adjr2b[index],col="red",pch=16)
 
-plot(1:13,rssb,type="l",ylab="train RSS",xlab="# of predictors")
+plot(1:16,rssb,type="l",ylab="train RSS",xlab="# of predictors",main= "Complex MLR RSS")
 index<-which(rssb==min(rssb))
-points(index,rssb[index],col="red",pch=13)
+points(index,rssb[index],col="red",pch=16)
+
+
 
 #Cross validation function
 predict.regsubsets =function (object , newdata ,id ,...){
@@ -625,27 +633,28 @@ predict.regsubsets =function (object , newdata ,id ,...){
 
 #test versus train 
 testASEb<-c()
-for (i in 1:13){
+for (i in 1:16){
   predictions <-predict.regsubsets(object=fwdcpmodel1,newdata=test,id=i)
   testASEb[i]<-mean((test$Life.expectancy-predictions)^2)
 }
 
 #test versus train graph
 par(mfrow=c(1,1))
-plot(1:13,testASEb,type="l",xlab="# of predictors",ylab="test vs train ASE")
+plot(1:16,testASEb,type="l",xlab="# of predictors",ylab="test vs train ASE",main= "Complex MLR Train vs Test")
 index<-which(testASEb==min(testASEb))
 points(index,testASEb[index],col="red",pch=13)
-lines(1:13,rssb/2489,lty=3,col="blue")
+lines(1:16,rssb/2489,lty=3,col="blue")
+testASEb
 
-#8 seems to be optimum number of variables
-coef(fwdcpmodel1,8)
+#11 seems to be optimum number of variables
+coef(fwdcpmodel1,11)
 
 #vif check before final model
-vifcheckmodel <- lm(Life.expectancy ~ Status + continent +  Income.composition.of.resources + Schooling + HIV.AIDS_log + Income.composition.of.resources*Schooling + Income.composition.of.resources*BMI_log + Schooling*BMI_log, data = train)
+vifcheckmodel <- lm(Life.expectancy ~ Status + continent +  Income.composition.of.resources + Schooling + BMI_log + HIV.AIDS_log + Income.composition.of.resources*Schooling + Income.composition.of.resources*BMI_log + Schooling*BMI_log, data = train)
 
 #base check of model summary with VIF
 par(mfrow=c(2,2))
-plot(vifcheckmodel)
+plot(vifcheckmodel, main = "VIF Check Residual Plots")
 summary(vifcheckmodel)
 vif(vifcheckmodel)
 
@@ -657,13 +666,19 @@ plot(vifcheckmodelb)
 summary(vifcheckmodelb)
 vif(vifcheckmodelb)
 
-#Final model with VIF handled.
-finalcpmodelb <- lm(Life.expectancy ~ Status + continent +  Income.composition.of.resources*HIV.AIDS_log + Schooling*BMI_log, data = train)
+# Final model with VIF handled.
+finalcpmodelb <- lm(Life.expectancy ~ Status + continent +  Income.composition.of.resources + Schooling*BMI_log+ HIV.AIDS_log, data = train)
 
-#checkign final residual plots.
+# checkign final residual plots.
 par(mfrow=c(2,2))
 summary(finalcpmodelb)
-plot(finalcpmodelb)
+plot(finalcpmodelb, main = "Final Model Residuals")
+
+
+# Final Cross validation function
+pred <- predict(finalcpmodelb, newdata = test)
+finalase <- mse(test$Life.expectancy, pred)
+finalase
 ```
 
 ```{r KNN regression Model}
