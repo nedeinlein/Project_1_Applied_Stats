@@ -2,8 +2,11 @@
 title: "Group4_EDA"
 author: "Adeel Qureshi, Cleveland Johnson, Nathan Deinlein, and Puri Rudick"
 date: "5/23/2021"
-output: html_document
-editor_options: 
+output:
+  word_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
 chunk_output_type: console
 ---
 
@@ -112,21 +115,6 @@ mm %>% ggplot(aes(x= reorder(key, desc(max.per.group)), y=pct, fill=isna)) + geo
                     values = c('lightblue2', 'lightsalmon2'), 
                     labels = c("Present", "Missing")) + coord_flip()
 
-
-# Missing value in each observation
-missing_col <- subset(lifeExpec, select = c(levels))
-vis_miss(missing_col, sort_miss=TRUE)
-
-# We will keep all data for now.  Will decide on method to treat missing data later after we figure it out about the variables that we would like to include in the model
-# In my opinion, deleting all missing value will cause too much information lost
-
-
-# Missing values by country
-lifeExpec %>% 
-  group_by(Country) %>% 
-  summarise_all(~sum(is.na(.))) %>% 
-  transmute(Country, sumNA = rowSums(.[-1]))
-
 ```
 
 ###### Life expectancy correlation coefficient for numerical variables
@@ -214,7 +202,7 @@ cor(log(GDP), Life.expectancy)
 
 ```
 
-```{r Transformation Diptheria, HIV, and Polio, echo = false}
+```{r Transformation Diptheria, HIV, and Polio}
 attach(lifeExpec)
 lifeExpec %>% ggplot(aes(x=Diphtheria, y=Life.expectancy)) + geom_point() + geom_smooth(method="loess") + geom_jitter()
 oglm <- lm(Life.expectancy~Diphtheria, data = lifeExpec)
@@ -257,7 +245,7 @@ summary(HIVlm)
 
 # Polio
 Polio1 <- lifeExpec %>% filter(!is.na(Polio))
-summary(Polio$Polio)
+summary(Polio1$Polio)
 Polio1 %>% ggplot(aes(x=Polio, y = Life.expectancy)) +geom_point() + geom_smooth(method = "lm") + geom_jitter()
 
 #similar to Diphtheria vaccination rates nothing below 25 should have a reasonable effect on total population.
@@ -276,7 +264,7 @@ summary(poliolm)
 
 ```
 
-```{r infant.deaths, Avg_ChildMort, Adult.Mortality echo = false}
+```{r infant.deaths, Avg_ChildMort, Adult.Mortality}
 #EDA for the life expectancy data
 
 data <- lifeExpec
@@ -598,16 +586,15 @@ lifeExpec[544,]
 lifeExpec[864,]
 ```
 
-```{r Complex MLR}
 
+```{r Build Complex MLR}
 #complex model with interaction terms
-fwdcpmodel1 <- regsubsets(Life.expectancy ~ Status + continent + Income.composition.of.resources + Schooling + BMI_log + GDP_log + HIV.AIDS_log + Income.composition.of.resources*Schooling + Income.composition.of.resources*BMI_log + Income.composition.of.resources*GDP_log + Schooling*BMI_log+Schooling*GDP_log + BMI_log*GDP_log, data = train, method = 'backward', nvmax=16)
+fwdcpmodel1 <- regsubsets(Life.expectancy ~ Status + continent + Income.composition.of.resources + Schooling + BMI_log + GDP_log + HIV.AIDS_log + Income.composition.of.resources*Schooling + Income.composition.of.resources*BMI_log + Income.composition.of.resources*GDP_log + Schooling*BMI_log+Schooling*GDP_log + BMI_log*GDP_log, data = train, method = 'backward', nvmax=13)
 
 #base check of model summary with VIF
-par(mfrow=c(2,2))
-plot(fwdcpmodel1)
-summary(fwdcpmodel1)
-
+#par(mfrow=c(2,2))
+#plot(fwdcpmodel1)
+#summary(fwdcpmodel1)
 
 #plot of BIC, ADJR^2, and RSS
 bicsb <- summary(fwdcpmodel1)$bic
@@ -680,6 +667,7 @@ plot(finalcpmodelb)
 ```
 
 ```{r KNN regression Model}
+# the KNN regression model for project 1 using final dataset
 
 head(lifeExpec_final)
 
@@ -693,6 +681,13 @@ lifeExpec_final$Status <- as.numeric(as.factor(lifeExpec_final$Status))
 lifeExpec_final$continent <- as.numeric(as.factor(lifeExpec_final$continent))
 
 head(lifeExpec_final, 5)
+
+#Test and train sets
+set.seed(7)
+splitPerc = .85
+trainIndices = sample(1:dim(lifeExpec_final)[1],round(splitPerc * dim(lifeExpec_final)[1]))
+train = lifeExpec_final[trainIndices,]
+test = lifeExpec_final[-trainIndices,]
 
 #estimation-validation split
 lifeEst_trn_idx  <- sample(nrow(train), size = 0.8 * nrow(train))
@@ -726,10 +721,20 @@ lifeEst_knn_10 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 10),
 lifeEst_knn_25 <- knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = 25)
 )
 
+plot(lifeEst_est,predict(lifeEst_knn_01,lifeEst_val))
+
+#creating function for multiple k values
+train_knn <- function(neighbors) {
+  knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = neighbors)
+}
+
 train_knn(neighbors = 5)
+
 
 knn_list <- lapply(1:50, train_knn)
 
+
+#knn_val_pred <- lapply(knn_mod_list, predict, lifeEst_val)
 knn_val_pred <- lapply(knn_list, predict, lifeEst_val)
 knn_trn_pred <- lapply(knn_list, predict, lifeEst_est)
 
@@ -739,17 +744,13 @@ calc_rmse <- function(actual, predicted) (
 
 sapply(knn_val_pred, calc_rmse, lifeEst_val$Life.expectancy)
 
-#creating function for multiple k values
-train_knn <- function(neighbors) {
-  knnreg(Life.expectancy ~ ., data = lifeExpec_final, k = neighbors)
-}
 
 #create vectors for RMSE val and pred
 knn_rmse_val <- sapply(knn_val_pred, calc_rmse, lifeEst_val$Life.expectancy)
 knn_rmse_trn <- sapply(knn_trn_pred, calc_rmse, lifeEst_est$Life.expectancy)
 
 #plot rmse 
-plot(1:50, knn_rmse_val, type = "b", col = "dodgerblue", pch = 20, ylim = range(c(knn_rmse_val,knn_rmse_trn)), xlab = "k (number of neighbors", ylab = "RMSE", main = "Validation and Training RMSE vs k")
+plot(1:50, knn_rmse_val, type = "b", col = "dodgerblue", pch = 20, ylim = range(c(knn_rmse_val,knn_rmse_trn)), xlab = "k (number of neighbors)", ylab = "RMSE", main = "Validation and Training RMSE vs k")
 lines(1:50, knn_rmse_trn, col = "darkorange")
 grid()
 legend('bottomright', 
@@ -818,6 +819,20 @@ legend('bottomright',
        col = c(2,1),
        lty = 1,
        pch = 20)
+
+#test ASE for the KNN model
+testASE <- c()
+for (i in 1:8) {
+  predictions<-predict.regsubsets(object=reg.fwd,newdata=lifeEst_val, id=i)
+  testASE[i]<-mean((lifeExpec_final$Life.expectancy - predictions)^2)
+}
+par(mfrow=c(1,1))
+plot(1:8, testASE, type="l",xlab-"# of predictors",ylab = "test vs train ASE", ylim=c(0.3,0.8))
+index<-which(testASE==min(testASE))
+points(index,testASE[index],col="red",pch=10)
+rss<-summary(reg.fwd)$rss
+lines(1:8,rss/498,lty=3,col="blue")  
+
 ```
 
 
